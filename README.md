@@ -1,10 +1,10 @@
-### thefac search engine
+# thefac search engine
 
 This project is based on elastic search
 
 ## Install ElasticSearch
 
-# .deb file here :
+### .deb file here :
 
     - https://www.elastic.co/downloads/elasticsearch
     - sudo service elasticsearch start
@@ -13,7 +13,7 @@ This project is based on elastic search
 
     check '/etc/elasticsearch' if there's any issue
 
-# homebrew :
+### homebrew :
 
     - brew install elasticsearch
     - curl -X GET http://localhost:9200 to verify that ElasticSearch is running
