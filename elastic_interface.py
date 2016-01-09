@@ -14,6 +14,31 @@ import os
 # libname = "/usr/lib/x86_64-linux-gnu/libpoppler-glib.so.8"
 # poppler = ctypes.cdll.LoadLibrary(libname)
 
+def isThereATable(page):
+    pageFormat = ""
+
+    # 'A' == 65, 'Z' == 90, 'a' == 97, 'z' == 122, '0' == 48, '9' == 57
+    for x in range(0,len(page)):
+        if (65 <= ord(page[x]) and ord(page[x]) <= 90) or (97 <= ord(page[x]) and ord(page[x]) <= 122):
+            # page[x] = 'a'
+            pageFormat += 'a'
+        else:
+            if (48 <= ord(page[x]) and ord(page[x]) <= 57):
+                # page[x] = '0'
+                pageFormat += '0'
+            else:
+                pageFormat += page[x]
+
+    # print pageFormat
+    lines = pageFormat.split("\n")
+
+    for x in range(1,len(lines)):
+        if lines[x] != "" and lines[x] == lines[x-1]:
+            return True
+
+    return False
+
+
 
 def main():
     # request elastic search
@@ -22,7 +47,7 @@ def main():
     print(str(response.headers))
     print(str(response.content))
 
-    base = "hpc"
+    base = "mich"
     filename = "./files/"+base+".pdf"
 
     if os.path.isfile(filename):
@@ -36,7 +61,7 @@ def main():
         exit(0)
     else:
         print("pdftotext is running ...")
-        sp.call(["pdftotext",filename, "./files/"+base64.b64encode(base)])
+        sp.call(["pdftotext","-layout",filename, "./files/"+base64.b64encode(base)])
 
     f = open("./files/"+base64.b64encode(base),"r")
 
@@ -53,15 +78,19 @@ def main():
     # }
     for i in range(len(pages)):
         page = pages[i]
+
         # build json Object
         text = " ".join(page.split())
+
         json_text = {}
         json_text["content"] = text
         json_text["pageNumber"] = i
         json_text["filepath"] = os.path.abspath(filename)
+        json_text["isThereATable"] = isThereATable(page)
+        json_text["brand"] = base
         data = json.dumps(json_text)
         # add to elasticsearch
-        res = req.put("http://localhost:9200/parts/hpc/"+str(i),data)
+        res = req.put("http://localhost:9200/pdf/page/"+base+str(i),data)
         print(res.content)
 
     # end of main
