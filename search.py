@@ -21,9 +21,36 @@ def main():
 
     # query
     query = json.dumps({
-        "query": {
-            "match": {
-                "content": "spur gear"
+        "query" : {
+            "bool" : {
+                "must" : [
+                    {
+                        "multi_match" : {
+                            "query" : "16 12,80",
+                            "fields" : [ "table.*" ],
+                            "operator":   "and"
+                        }
+                        # "query_string": {
+                        #     "query" : "table.\*:(44 AND 46 AND 20)",
+                        #     "use_dis_max" : "false",
+                        #     "minimum_should_match" : "100%"
+                        # }
+                    }
+                    ,
+                    {
+                        "match" : {
+                            "content" : "gear"
+                        }
+                    }
+                    ,
+                    {
+                        "match" : {
+                            "brand" : "hpc"
+                        }
+                    }
+                ],
+                "must_not" : [],
+                "should" : []
             }
         }
     })
@@ -31,7 +58,7 @@ def main():
 
     # search in localhost:9200/parts/hpc/_search
     # shows 10 first results order by _score
-    res = req.get("http://localhost:9200/parts/hpc/_search",data=query)
+    res = req.get("http://localhost:9200/pdf/page/_search",data=query)
 
     output = json.loads(res.text)
 
