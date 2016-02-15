@@ -76,6 +76,26 @@ def should_add_the_line_to_table(line):
         return False
 
 
+def get_the_good_line_bbox_indice(lines_layout,lines_bbox):
+    score = []
+    for x in range(0,len(lines_bbox)):
+        score.append(0)
+        for y in range(0,len(lines_bbox[x])):
+            score[x] += len(re.findall(" "+re.escape(lines_bbox[x][y])+" "," "+lines_layout+" "))
+
+    indiceMax = 0
+    maxScore = -1
+
+    for x in range(0,len(score)):
+        if score[x] > maxScore:
+            maxScore = score[x]
+            indiceMax = x
+            pass
+        pass
+    return indiceMax
+
+
+
 def getTheJsonFromThePage(page_layout,page_bbox,page_number,image_path,brand):
     # The field of a page object in elasticsearch
     json_text = {}
@@ -92,9 +112,34 @@ def getTheJsonFromThePage(page_layout,page_bbox,page_number,image_path,brand):
     page_width = tmp_page_dimension[0][0]
     page_height = tmp_page_dimension[0][1]
 
+    # We find all the value of yMin
+    yMin = re.findall("yMin=\"([^\"]*?)\"",page_bbox)
+
+    # We remove doublet and we sort the list
+    yMin_tmp = []
+    for p in range(0,len(yMin)):
+        isthere = False
+        for j in range(0,len(yMin_tmp)):
+            if yMin_tmp[j] == yMin[p]:
+                isthere = True
+                break
+        if isthere == False:
+            yMin_tmp.append(yMin[p])
+
+    yMin_tmp.sort()
+    yMin = list(yMin_tmp)
+
+    lines_bbox = []
+    # We get all the word with the same yMin value
+    for p in range(0,len(yMin)):
+        lines_bbox.append( re.findall("<word[^>]*yMin=\""+str(yMin[p])+"\"[^>]*>([^<]*)</word>",page_bbox) )
+        pass
+
+
     cpt_number_line_in_table = 0
     table = {}
     list_frame = {}
+    context = " "
     for line_iterator in range(0,len(lines_layout)):
         if lines_layout[line_iterator] != "":
             if should_add_the_line_to_table(lines_layout[line_iterator]):
@@ -102,39 +147,39 @@ def getTheJsonFromThePage(page_layout,page_bbox,page_number,image_path,brand):
                 table[cpt_number_line_in_table] = lines_layout[line_iterator]
 
                 # We add the frame to the list_frame
-                words = re.split(' *',lines_layout[line_iterator])
-                tmp_words = []
-                for word_iterator in range(0,len(words)):
-                    if words[word_iterator] != '':
-                        tmp_words.append(words[word_iterator])
-                words = list(tmp_words)
-                xMin = 0
-                yMin = 0
-                xMax = 0
-                yMax = 0
-                print "$$$$$$$$$$ : ",line_iterator,words
-                if len(words) >= 2:
-                    current_line_bbox = re.findall("<word[^<>]*>"+words[0]+"<.*>"+words[len(words)-1]+"</word>",page_bbox,re.DOTALL)
-                if len(words) == 1:
-                    current_line_bbox = re.findall("<word[^<>]*>"+words[0]+"</word>",page_bbox,re.DOTALL)
-                if current_line_bbox != []:
-                    current_line_bbox = current_line_bbox[0]
-                    print "           : ",current_line_bbox
-                    xMin = float(min(re.findall("xMin=\"([^\"]*?)\"",current_line_bbox)))/float(page_width)
-                    yMin = float(min(re.findall("yMin=\"([^\"]*?)\"",current_line_bbox)))/float(page_height)
-                    xMax = float(max(re.findall("xMax=\"([^\"]*?)\"",current_line_bbox)))/float(page_width)
-                    yMax = float(max(re.findall("yMax=\"([^\"]*?)\"",current_line_bbox)))/float(page_height)
-                list_frame[cpt_number_line_in_table] = str(xMin)+' '+str(yMin)+' '+str(xMax)+' '+str(yMax)
+                indice = get_the_good_line_bbox_indice(lines_layout[line_iterator],lines_bbox)
+
+                list_coord_line = re.findall("<word xMin=\"([^>]*)\" yMin=\""+str(yMin[indice])+"\" xMax=\"([^>]*)\" yMax=\"([^>]*)\">[^<]*</word>",page_bbox)
+                xMin = []
+                xMax = []
+                yMax = []
+                for q in range(0,len(list_coord_line)):
+                    xMin.append(float(list_coord_line[q][0]))
+                    xMax.append(float(list_coord_line[q][1]))
+                    yMax.append(float(list_coord_line[q][2]))
+                xMin = min(xMin)
+                xMax = max(xMax)
+                yMax = max(yMax)
+
+                xMin = xMin/float(page_width)
+                yMin_current = float(yMin[indice])/float(page_height)
+                xMax = xMax/float(page_width)
+                yMax = yMax/float(page_height)
+                list_frame[cpt_number_line_in_table] = str(xMin)+' '+str(yMin_current)+' '+str(xMax)+' '+str(yMax)
                 cpt_number_line_in_table += 1
+
             else:
                 # We add the line to the context
-                json_text["context"] += " ".join(lines_layout[line_iterator].split())
+                context += " " + " ".join(lines_layout[line_iterator].split()) + " "
+
+    for x in range(0,len(table)):
+        table[x] += context
 
     json_text["table"] = table
     json_text["list_frame"] = list_frame
 
-    # return json.dumps(json_text)
-    return json_text
+    return json.dumps(json_text)
+
 
 
 def main():
@@ -189,7 +234,9 @@ def main():
     #   "content" : " ... ",
     #    ...
     # }
-    for i in range(43,len(pages_layout)):
+
+    # The last page of pages_layout is empty
+    for i in range(78,len(pages_layout)-1):
         # page = pages[i]
 
         # # build json Object
@@ -217,18 +264,18 @@ def main():
         # json_text["table"] = table
         # json_text["brand"] = base
         # data = json.dumps(json_text)
+        page_path = "Image/"
 
-        data = getTheJsonFromThePage(pages_layout[i],pages_bbox[i],i,"/dummy/path",base)
+        if i + 1 >= 100:
+            page_path = page_path + "hpc-" + str(i + 1) + ".png"
+        elif i + 1 >= 10:
+            page_path = page_path + "hpc-0" + str(i + 1) + ".png"
+        else:
+            page_path = page_path + "hpc-00" + str(i + 1) + ".png"
 
-        print pages_layout[i]
-        print "###########"
-        print data["table"]
-        print "###########"
-        print data["context"]
-        print "###########"
-        print data["list_frame"]
 
-        exit(1)
+        data = getTheJsonFromThePage(pages_layout[i],pages_bbox[i],i,page_path,base)
+
 
         # add to elasticsearch
         res = req.put("http://localhost:9200/pdf/page/"+base+str(i),data)
