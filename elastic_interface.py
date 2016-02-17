@@ -236,7 +236,7 @@ def main():
     # }
 
     # The last page of pages_layout is empty
-    for i in range(78,len(pages_layout)-1):
+    for i in range(0,len(pages_layout)-1):
         # page = pages[i]
 
         # # build json Object
