@@ -26,7 +26,7 @@ def main():
                 "must" : [
                     {
                         "multi_match" : {
-                            "query" : "16 12,80",
+                            "query" : "spur gear",
                             "fields" : [ "table.*" ],
                             "operator":   "and"
                         }
@@ -39,7 +39,7 @@ def main():
                     ,
                     {
                         "match" : {
-                            "content" : "gear"
+                            "content" : "spur gear"
                         }
                     }
                     ,

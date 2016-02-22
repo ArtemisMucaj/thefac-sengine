@@ -264,7 +264,7 @@ def main():
         # json_text["table"] = table
         # json_text["brand"] = base
         # data = json.dumps(json_text)
-        page_path = "Image/"
+        page_path = "/files/"
 
         if i + 1 >= 100:
             page_path = page_path + "hpc-" + str(i + 1) + ".png"
